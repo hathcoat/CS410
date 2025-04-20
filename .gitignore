@@ -1,0 +1,16 @@
+# Ignore Virtual environment
+venv/
+
+# Ignore data directories
+data/
+received/
+
+# Ignore compiled files
+__pycache__/
+*.pyc
+
+# Ignore CS410
+CS410/
+
+# Ignore key.json
+key.json
