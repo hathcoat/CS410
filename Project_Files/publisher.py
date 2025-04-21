@@ -79,3 +79,4 @@ with open(error_log_path, 'w') as error_log:
 
 print(f"All data published to Pub/Sub.")
 print(f"Errors (if any) logged to: {error_log_path}")
+os.chmod(error_log_path, 0o777)
