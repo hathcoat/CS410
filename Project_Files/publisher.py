@@ -1,7 +1,5 @@
 # Cody Hathcoat     CS410
 
-#Before running make sure to export your GCP credentials:
-# export GOOGLE_APPLICATION_CREDENTIALS="/path/to/key.json"
 import requests
 import os
 import datetime
