@@ -1,7 +1,5 @@
 # Cody Hathcoat     CS410
 
-#Before running make sure to export your GCP credentials:
-# export GOOGLE_APPLICATION_CREDENTIALS="/path/to/key.json"
 import requests
 import os
 import datetime
@@ -79,3 +77,4 @@ with open(error_log_path, 'w') as error_log:
 
 print(f"All data published to Pub/Sub.")
 print(f"Errors (if any) logged to: {error_log_path}")
+os.chmod(error_log_path, 0o777)

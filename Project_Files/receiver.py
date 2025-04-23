@@ -1,8 +1,5 @@
 # Cody Hathcoat     CS410
 
-#Before running make sure to export your GCP credentials:
-# export GOOGLE_APPLICATION_CREDENTIALS="/path/to/key.json"
-
 from google.cloud import pubsub_v1 # Google cloud client library for Pub/Sub
 import os
 import json
@@ -33,8 +30,18 @@ is_first_record = True
 def shutdown_handler(signum, frame):
     print(f"Received signal {signum}. Finalizing JSON file.")
     try:
-        with open(output_file_path, 'a') as f:
-            f.write("\n]\n")
+        with open(output_file_path, 'rb') as f:
+            f.seek(-2, os.SEEK_END)
+            while f.read(1) != b'\n':
+                f.seek(-2, os.SEEK_CUR)
+            last_line = f.readline().strip().decode()
+
+        if last_line != ']':
+            with open(output_file_path, 'a') as f:
+                f.write("\n]\n")
+        else:
+            print("File already ends with closing bracket.")
+
     except Exception as e:
         print(f"Failed to finalize file: {e}")
     finally:
@@ -56,7 +63,7 @@ def callback(message):
 
 signal.signal(signal.SIGTERM, shutdown_handler)
 signal.signal(signal.SIGINT, shutdown_handler)
-# Listen to teh subscription (Designed to run in the background)
+# Listen to the subscription (Designed to run in the background)
 streaming_pull_future = subscriber.subscribe(subscription_path, callback=callback)
 print(f"Listening on {subscription_path}...")
 
