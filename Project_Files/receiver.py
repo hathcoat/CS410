@@ -24,11 +24,11 @@ output_file_path = os.path.join(output_dir, f"received_{today}.json")
 if not os.path.exists(output_file_path):
     with open(output_file_path, 'w') as f:
         f.write("[\n")
+    os.chmod(output_file_path, 0o666)
 
 is_first_record = True
 
 def shutdown_handler(signum, frame):
-    print(f"Received signal {signum}. Finalizing JSON file.")
     try:
         with open(output_file_path, 'rb') as f:
             f.seek(-2, os.SEEK_END)
@@ -39,11 +39,9 @@ def shutdown_handler(signum, frame):
         if last_line != ']':
             with open(output_file_path, 'a') as f:
                 f.write("\n]\n")
-        else:
-            print("File already ends with closing bracket.")
 
     except Exception as e:
-        print(f"Failed to finalize file: {e}")
+        pass
     finally:
         streaming_pull_future.cancel()
         sys.exit(0)
@@ -52,30 +50,32 @@ def shutdown_handler(signum, frame):
 # callback decods, parses, appends, and acks the message
 def callback(message):
     global is_first_record
-    data = json.loads(message.data.decode("utf-8")) # Convert from bytes to str to dictionary
 
-    with open(output_file_path, 'a') as f:
-        if not is_first_record:
-            f.write(",\n")
-        json.dump(data, f, indent=2)
-        is_first_record = False
-    message.ack()
+    try:
+        data = json.loads(message.data.decode("utf-8")) # Convert from bytes to str to dictionary
+
+        with open(output_file_path, 'a') as f:
+            if not is_first_record:
+                f.write(",\n")
+            json.dump(data, f, indent=2)
+            is_first_record = False
+        message.ack()
+    except Exception:
+        pass
 
 signal.signal(signal.SIGTERM, shutdown_handler)
 signal.signal(signal.SIGINT, shutdown_handler)
+
 # Listen to the subscription (Designed to run in the background)
 streaming_pull_future = subscriber.subscribe(subscription_path, callback=callback)
-print(f"Listening on {subscription_path}...")
 
 try:
     #Keep program running and listening.
     streaming_pull_future.result() 
-except KeyboardInterrupt:
-    #Save messages to a file after Ctrl+C
-    with open(output_file_path, 'a') as f:
-        f.write("\n]\n")
-    print(f"\nFinished. Output saved to: {output_file_path}")
-
-except Exception as  e:
-    print(f"Error: {e}")
-    streaming_pull_future.cancel()
+except Exception as e:
+    #Save messages to a file.
+    try:
+        with open(output_file_path, 'a') as f:
+            f.write("\n]\n")
+    except:
+        pass
