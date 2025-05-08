@@ -41,7 +41,7 @@ def shutdown_handler(signum, frame):
                 f.write("\n]\n")
 
     except Exception as e:
-        pass
+        print(f"Issue finalizing file: {e}")
     finally:
         streaming_pull_future.cancel()
         sys.exit(0)
@@ -60,8 +60,8 @@ def callback(message):
             json.dump(data, f, indent=2)
             is_first_record = False
         message.ack()
-    except Exception:
-        pass
+    except Exception as e:
+        print(f"Issue writing record: {e}") 
 
 signal.signal(signal.SIGTERM, shutdown_handler)
 signal.signal(signal.SIGINT, shutdown_handler)
@@ -78,4 +78,4 @@ except Exception as e:
         with open(output_file_path, 'a') as f:
             f.write("\n]\n")
     except:
-        pass
+        print("Finalized file.")

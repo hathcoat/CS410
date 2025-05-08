@@ -36,7 +36,7 @@ for vehicle_id in vehicle_ids:
     try:
         response = requests.get(url)
 
-        if(response.status_code == 404):
+        if(response.status_code != 200):
            continue
 
         response.raise_for_status() #Raise err for bad status codes.
@@ -54,4 +54,4 @@ for vehicle_id in vehicle_ids:
             print(f"Unexpected format for vehicle {vehicle_id}, skipping")
 
     except Exception as e:
-        pass
+        print(f"Issue publishing record: {e}")
