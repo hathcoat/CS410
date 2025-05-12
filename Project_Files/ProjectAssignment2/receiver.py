@@ -98,7 +98,7 @@ def process_batch():
                 trip_id = r["EVENT_NO_TRIP"]
                 vehicle_id = r["VEHICLE_ID"]
 
-                print(f"Inserting Trip ID: {trip_id}, Vehicle ID: {vehicle_id}")
+                #print(f"Inserting Trip ID: {trip_id}, Vehicle ID: {vehicle_id}")
 
                 if trip_id not in seen_trips:
                     seen_trips.add(trip_id)
