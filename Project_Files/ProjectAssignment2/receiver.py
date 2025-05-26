@@ -10,6 +10,7 @@ import sys
 import io
 import psycopg2
 from validate_transform import validate_transform
+from dotenv import load_dotenv, dotenv_values
 
 GCP_PROJECT_ID = "data-engineering-2025-456119"
 SUBSCRIPTION_ID = "trimet-sub"
@@ -21,10 +22,8 @@ subscription_path = subscriber.subscription_path(GCP_PROJECT_ID, SUBSCRIPTION_ID
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 today = datetime.datetime.now().strftime("%Y-%m-%d")
 output_dir = os.path.join(BASE_DIR, "received", today)
-#output_dir = f"/data/received/{today}"
 os.makedirs(output_dir, exist_ok=True)
 output_file_path = os.path.join(output_dir, f"received_{today}.json")
-#output_to_csv = os.path.join(output_dir, f"breadcrumb.csv")
 
 record_buffer = []
 record_to_write = []
@@ -38,10 +37,11 @@ if not os.path.exists(output_file_path) or os.stat(output_file_path).st_size == 
 is_first_record = True
 
 def dbconnect():
+    load_dotenv()
     return psycopg2.connect(
         dbname="postgres",
         user="postgres",
-        password="@Supersonic426",
+        password=os.getenv('PASSWORD'),
         host="localhost"
     )
 
@@ -72,6 +72,11 @@ def shutdown_handler(signum, frame):
 def process_batch():
     global record_buffer, record_to_write, is_first_record
 
+    BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+    today = datetime.datetime.now().strftime("%Y-%m-%d")
+    output_dir = os.path.join(BASE_DIR, "received", today)
+    os.makedirs(output_dir, exist_ok=True)
+    output_file_path = os.path.join(output_dir, f"received_{today}.json")
     with open(output_file_path, 'a') as f:
         for record in record_to_write:
             if not is_first_record:
@@ -89,37 +94,40 @@ def process_batch():
     if valid_records:
         conn = dbconnect()
         conn.autocommit=True
+        seen_trips = set()
         with conn.cursor() as cursor:
             #Load Trip table.
             seen_trips = set()
             output = io.StringIO()
+            output_trip = io.StringIO()
 
             for r in valid_records:
                 trip_id = r["EVENT_NO_TRIP"]
                 vehicle_id = r["VEHICLE_ID"]
 
-                #print(f"Inserting Trip ID: {trip_id}, Vehicle ID: {vehicle_id}")
-
                 if trip_id not in seen_trips:
+                    output_trip.write(f"{trip_id},{vehicle_id}\n") #LINE ADDED
                     seen_trips.add(trip_id)
-                    try:
-                        cursor.execute("""
-                            INSERT INTO trip (trip_id, vehicle_id)
-                            VALUES(%s, %s)
-                            ON CONFLICT (trip_id) DO NOTHING;
-                        """, (trip_id, vehicle_id))
-                    except Exception as e:
-                        print(f"Failed to insert trip record: {e}")
 
-            #Prepare breadcrumb data for COPY
+                #Prepare breadcrumb data for COPY
                 if all(field in r for field in ("TIMESTAMP", "GPS_LATITUDE", "GPS_LONGITUDE", "SPEED", "EVENT_NO_TRIP")):
                     output.write(f"{r['TIMESTAMP']},{r['GPS_LATITUDE']},{r['GPS_LONGITUDE']},{r['SPEED']},{r['EVENT_NO_TRIP']}\n")
 
             #COPY to database
             try:
+                #This should add to trip table (This won't be here for part 3)
+                try:
+                    output_trip.seek(0)
+                    cursor.copy_from(output_trip, 'trip', sep=',',
+                                     columns=('trip_id', 'vehicle_id')) 
+                except Exception as e:
+                    print("Already added trip.")
+
                 output.seek(0)
                 cursor.copy_from(output, 'breadcrumb', sep=',',
                                  columns=('tstamp', 'latitude', 'longitude', 'speed', 'trip_id'))
+
+
             except Exception as e:
                 print(f"Error using copy_from: {e}")
         conn.close()
@@ -131,7 +139,6 @@ def process_batch():
 # Funcation that is called every time a message is received from Pub/Sub.
 # callback decods, parses, appends, and acks the message
 def callback(message):
-    #global is_first_record
     global record_buffer
     try:    
         data = json.loads(message.data.decode("utf-8")) # Convert from bytes to str to dictionary

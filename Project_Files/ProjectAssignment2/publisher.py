@@ -26,7 +26,6 @@ def load_vehicle_ids(csv_path):
         next(reader)
         return [row[0] for row in reader if row]
 
-#VEHICLE_ID_FILE = "vehicle_ids.csv"
 vehicle_ids = load_vehicle_ids(VEHICLE_ID_FILE) 
 BASE_URL = "https://busdata.cs.pdx.edu/api/getBreadCrumbs?vehicle_id="
 
